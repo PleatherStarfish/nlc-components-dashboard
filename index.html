@@ -428,7 +428,7 @@
         <header>
             <h1>NLC Components</h1>
             <p class="subtitle">Nonlinear Circuits Data Explorer</p>
-            <p class="tagline">A deep dive into the component data for Andrew Fitch's legendary DIY Eurorack modules. All data parsed from the official BOM PDFs.</p>
+            <p class="tagline">A deep dive into the component DNA of Andrew Fitch's legendary DIY Eurorack modules. All data processed live from the source CSV.</p>
         </header>
 
         <div id="loading" class="loading">Analyzing component data</div>
@@ -1146,16 +1146,50 @@
             document.getElementById('ubiquity-insight').innerHTML = `The <span class="highlight">${top3[0].component}</span> appears in ${top3[0].modules}% of all modules, followed by <span class="highlight">${top3[1].component}</span> (${top3[1].modules}%) and <span class="highlight">${top3[2].component}</span> (${top3[2].modules}%). These three components form the foundation of nearly every NLC design.`;
 
             const topResistors = Object.entries(data.resistorsByValue).sort((a, b) => b[1].modules - a[1].modules).slice(0, 15);
+            
+            // Gradient: coral to yellow
+            const resistorGradient = topResistors.map((_, i) => {
+                const t = i / Math.max(topResistors.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 242 * t);
+                const g = Math.round(131 * (1 - t) + 214 * t);
+                const b = Math.round(107 * (1 - t) + 75 * t);
+                return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            });
+            const resistorBorder = topResistors.map((_, i) => {
+                const t = i / Math.max(topResistors.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 242 * t);
+                const g = Math.round(131 * (1 - t) + 214 * t);
+                const b = Math.round(107 * (1 - t) + 75 * t);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+            
             new Chart(document.getElementById('resistorChart'), {
                 type: 'bar',
-                data: { labels: topResistors.map(([v]) => v), datasets: [{ label: 'Modules', data: topResistors.map(([, d]) => d.modules), backgroundColor: colors.coral + 'AA', borderColor: colors.coral, borderWidth: 2, borderRadius: 4 }] },
+                data: { labels: topResistors.map(([v]) => v), datasets: [{ label: 'Modules', data: topResistors.map(([, d]) => d.modules), backgroundColor: resistorGradient, borderColor: resistorBorder, borderWidth: 2, borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false } } } }
             });
 
             const decadeOrder = ['<10Ω', '10-100Ω', '100Ω-1k', '1k-10k', '10k-100k', '100k-1M', '>1M'];
+            
+            // Gradient: yellow to pink
+            const decadeGradient = decadeOrder.map((_, i) => {
+                const t = i / Math.max(decadeOrder.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 242 * t);
+                const g = Math.round(214 * (1 - t) + 80 * t);
+                const b = Math.round(75 * (1 - t) + 123 * t);
+                return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            });
+            const decadeBorder = decadeOrder.map((_, i) => {
+                const t = i / Math.max(decadeOrder.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 242 * t);
+                const g = Math.round(214 * (1 - t) + 80 * t);
+                const b = Math.round(75 * (1 - t) + 123 * t);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+            
             new Chart(document.getElementById('resistorDecadeChart'), {
                 type: 'bar',
-                data: { labels: decadeOrder, datasets: [{ label: 'Module Appearances', data: decadeOrder.map(d => data.resistorDecades[d] || 0), backgroundColor: colors.yellow + 'AA', borderColor: colors.yellow, borderWidth: 2, borderRadius: 4 }] },
+                data: { labels: decadeOrder, datasets: [{ label: 'Module Appearances', data: decadeOrder.map(d => data.resistorDecades[d] || 0), backgroundColor: decadeGradient, borderColor: decadeBorder, borderWidth: 2, borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false } } } }
             });
 
@@ -1163,9 +1197,26 @@
             document.getElementById('resistor-insight').innerHTML = `The <span class="highlight">${topDecade}</span> range dominates with ${data.resistorDecades[topDecade]} total module appearances. The classic E24 values (100k, 10k, 47k) are heavily favored. Note that "RL" (LED current limiting resistor) appears frequently, reflecting NLC's signature LED-heavy visual feedback.`;
 
             const topCaps = Object.entries(data.capacitorsByValue).sort((a, b) => b[1].modules - a[1].modules).slice(0, 12);
+            
+            // Gradient: teal to purple
+            const capGradient = topCaps.map((_, i) => {
+                const t = i / Math.max(topCaps.length - 1, 1);
+                const r = Math.round(38 * (1 - t) + 95 * t);
+                const g = Math.round(191 * (1 - t) + 23 * t);
+                const b = Math.round(148 * (1 - t) + 115 * t);
+                return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            });
+            const capBorder = topCaps.map((_, i) => {
+                const t = i / Math.max(topCaps.length - 1, 1);
+                const r = Math.round(38 * (1 - t) + 95 * t);
+                const g = Math.round(191 * (1 - t) + 23 * t);
+                const b = Math.round(148 * (1 - t) + 115 * t);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+            
             new Chart(document.getElementById('capacitorChart'), {
                 type: 'bar',
-                data: { labels: topCaps.map(([v]) => v.length > 15 ? v.slice(0, 15) + '...' : v), datasets: [{ label: 'Modules', data: topCaps.map(([, d]) => d.modules), backgroundColor: colors.teal + 'AA', borderColor: colors.teal, borderWidth: 2, borderRadius: 4 }] },
+                data: { labels: topCaps.map(([v]) => v.length > 15 ? v.slice(0, 15) + '...' : v), datasets: [{ label: 'Modules', data: topCaps.map(([, d]) => d.modules), backgroundColor: capGradient, borderColor: capBorder, borderWidth: 2, borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false } } } }
             });
 
@@ -1187,9 +1238,25 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, font: { size: 10 } } } } }
             });
 
+            // Gradient: purple to coral
+            const specialtyGradient = topSpecialty.map((_, i) => {
+                const t = i / Math.max(topSpecialty.length - 1, 1);
+                const r = Math.round(95 * (1 - t) + 242 * t);
+                const g = Math.round(23 * (1 - t) + 131 * t);
+                const b = Math.round(115 * (1 - t) + 107 * t);
+                return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            });
+            const specialtyBorder = topSpecialty.map((_, i) => {
+                const t = i / Math.max(topSpecialty.length - 1, 1);
+                const r = Math.round(95 * (1 - t) + 242 * t);
+                const g = Math.round(23 * (1 - t) + 131 * t);
+                const b = Math.round(115 * (1 - t) + 107 * t);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+
             new Chart(document.getElementById('specialtyICChart'), {
                 type: 'bar',
-                data: { labels: topSpecialty.map(([v]) => v.length > 15 ? v.slice(0, 15) + '...' : v), datasets: [{ label: 'Modules', data: topSpecialty.map(([, n]) => n), backgroundColor: colors.purple + 'AA', borderColor: colors.purple, borderWidth: 2, borderRadius: 4 }] },
+                data: { labels: topSpecialty.map(([v]) => v.length > 15 ? v.slice(0, 15) + '...' : v), datasets: [{ label: 'Modules', data: topSpecialty.map(([, n]) => n), backgroundColor: specialtyGradient, borderColor: specialtyBorder, borderWidth: 2, borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false }, ticks: { maxRotation: 45 } } } }
             });
 
@@ -1204,9 +1271,42 @@
             document.getElementById('ic-insight').innerHTML = `The <span class="highlight">TL072/TL082</span> dual op-amp family dominates, appearing in over half of all modules. Specialty ICs like the <span class="highlight">LM13700</span> (OTA), <span class="highlight">PT2399</span> (delay), and <span class="highlight">4046</span> (PLL) enable NLC's signature chaos and delay effects. <span class="highlight">${maxICModule.module}</span> uses the most ICs (${maxICModule.icCount}).`;
 
             const topTrans = Object.entries(data.transistors).sort((a, b) => b[1].qty - a[1].qty).slice(0, 8);
+            
+            // Gradient for modules: pink to coral
+            const transModGradient = topTrans.map((_, i) => {
+                const t = i / Math.max(topTrans.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 242 * t);
+                const g = Math.round(80 * (1 - t) + 131 * t);
+                const b = Math.round(123 * (1 - t) + 107 * t);
+                return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            });
+            const transModBorder = topTrans.map((_, i) => {
+                const t = i / Math.max(topTrans.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 242 * t);
+                const g = Math.round(80 * (1 - t) + 131 * t);
+                const b = Math.round(123 * (1 - t) + 107 * t);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+            
+            // Gradient for qty: teal to yellow
+            const transQtyGradient = topTrans.map((_, i) => {
+                const t = i / Math.max(topTrans.length - 1, 1);
+                const r = Math.round(38 * (1 - t) + 242 * t);
+                const g = Math.round(191 * (1 - t) + 214 * t);
+                const b = Math.round(148 * (1 - t) + 75 * t);
+                return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            });
+            const transQtyBorder = topTrans.map((_, i) => {
+                const t = i / Math.max(topTrans.length - 1, 1);
+                const r = Math.round(38 * (1 - t) + 242 * t);
+                const g = Math.round(191 * (1 - t) + 214 * t);
+                const b = Math.round(148 * (1 - t) + 75 * t);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+            
             new Chart(document.getElementById('transistorChart'), {
                 type: 'bar',
-                data: { labels: topTrans.map(([v]) => v.length > 20 ? v.slice(0, 20) + '...' : v), datasets: [{ label: 'Modules', data: topTrans.map(([, d]) => d.modules), backgroundColor: colors.pink + 'AA', borderColor: colors.pink, borderWidth: 2, borderRadius: 4 }, { label: 'Total Qty', data: topTrans.map(([, d]) => d.qty), backgroundColor: colors.teal + 'AA', borderColor: colors.teal, borderWidth: 2, borderRadius: 4 }] },
+                data: { labels: topTrans.map(([v]) => v.length > 20 ? v.slice(0, 20) + '...' : v), datasets: [{ label: 'Modules', data: topTrans.map(([, d]) => d.modules), backgroundColor: transModGradient, borderColor: transModBorder, borderWidth: 2, borderRadius: 4 }, { label: 'Total Qty', data: topTrans.map(([, d]) => d.qty), backgroundColor: transQtyGradient, borderColor: transQtyBorder, borderWidth: 2, borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true } } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false } } } }
             });
 
@@ -1232,18 +1332,52 @@
             document.getElementById('complexity-insight').innerHTML = `Complexity spans orders of magnitude: <span class="highlight">${mostComplex.module}</span> towers at ${mostComplex.totalParts.toLocaleString()} total parts, while <span class="highlight">${leastComplex.module}</span> achieves its function with just ${leastComplex.totalParts}. The scatter plot reveals how unique parts vs total parts don't always correlate — some modules reuse few components many times.`;
 
             const topSpecialized = data.moduleSpecialization.slice(0, 15);
+            
+            // Gradient: coral to teal
+            const specGradient = topSpecialized.map((_, i) => {
+                const t = i / Math.max(topSpecialized.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 38 * t);
+                const g = Math.round(131 * (1 - t) + 191 * t);
+                const b = Math.round(107 * (1 - t) + 148 * t);
+                return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            });
+            const specBorder = topSpecialized.map((_, i) => {
+                const t = i / Math.max(topSpecialized.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 38 * t);
+                const g = Math.round(131 * (1 - t) + 191 * t);
+                const b = Math.round(107 * (1 - t) + 148 * t);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+            
             new Chart(document.getElementById('specializationChart'), {
                 type: 'bar',
-                data: { labels: topSpecialized.map(m => m.module), datasets: [{ label: 'Unique Components', data: topSpecialized.map(m => m.uniqueCount), backgroundColor: colors.coral + 'AA', borderColor: colors.coral, borderWidth: 2, borderRadius: 4 }] },
+                data: { labels: topSpecialized.map(m => m.module), datasets: [{ label: 'Unique Components', data: topSpecialized.map(m => m.uniqueCount), backgroundColor: specGradient, borderColor: specBorder, borderWidth: 2, borderRadius: 4 }] },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(95,23,115,0.3)' }, title: { display: true, text: 'Components Found Only in This Module', color: colors.teal } }, y: { grid: { display: false } } } }
             });
 
             document.getElementById('specialization-insight').innerHTML = `<span class="highlight">${topSpecialized[0].module}</span> leads with ${topSpecialized[0].uniqueCount} components found nowhere else in the NLC catalog. High specialization often indicates experimental circuits, build variants, or unusual component choices that give each module its distinctive character.`;
 
             const uniqueByModuleSorted = Object.entries(data.uniqueByModule).sort((a, b) => b[1] - a[1]).slice(0, 12);
+            
+            // Gradient: yellow to purple
+            const uniqueGradient = uniqueByModuleSorted.map((_, i) => {
+                const t = i / Math.max(uniqueByModuleSorted.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 95 * t);
+                const g = Math.round(214 * (1 - t) + 23 * t);
+                const b = Math.round(75 * (1 - t) + 115 * t);
+                return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            });
+            const uniqueBorder = uniqueByModuleSorted.map((_, i) => {
+                const t = i / Math.max(uniqueByModuleSorted.length - 1, 1);
+                const r = Math.round(242 * (1 - t) + 95 * t);
+                const g = Math.round(214 * (1 - t) + 23 * t);
+                const b = Math.round(75 * (1 - t) + 115 * t);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+            
             new Chart(document.getElementById('uniqueByModuleChart'), {
                 type: 'bar',
-                data: { labels: uniqueByModuleSorted.map(([m]) => m), datasets: [{ label: 'Unique Parts', data: uniqueByModuleSorted.map(([, n]) => n), backgroundColor: colors.yellow + 'AA', borderColor: colors.yellow, borderWidth: 2, borderRadius: 4 }] },
+                data: { labels: uniqueByModuleSorted.map(([m]) => m), datasets: [{ label: 'Unique Parts', data: uniqueByModuleSorted.map(([, n]) => n), backgroundColor: uniqueGradient, borderColor: uniqueBorder, borderWidth: 2, borderRadius: 4 }] },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(95,23,115,0.3)' } }, y: { grid: { display: false } } } }
             });
 
