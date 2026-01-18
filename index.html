@@ -6,6 +6,7 @@
     <title>NLC Components Explorer | Nonlinear Circuits Data Viz</title>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -296,6 +297,128 @@
         .mini-stat-label { font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 5px; }
 
         .col-header { color: var(--teal); margin-bottom: 20px; font-size: 1.2rem; font-weight: 500; }
+
+        /* Chord diagram styles */
+        #chord-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 600px;
+            position: relative;
+        }
+
+        #chord-svg {
+            overflow: visible;
+        }
+
+        .chord-group-arc {
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+        }
+
+        .chord-group-arc:hover {
+            filter: brightness(1.3);
+        }
+
+        .chord-ribbon {
+            fill-opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+
+        .chord-ribbon:hover {
+            fill-opacity: 0.95;
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        .chord-label {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            fill: rgba(255, 255, 255, 0.9);
+            pointer-events: none;
+        }
+
+        .chord-tooltip {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(95,23,115,0.95), rgba(13,5,16,0.98));
+            border: 1px solid var(--pink);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            color: white;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 100;
+            max-width: 250px;
+            box-shadow: 0 4px 20px rgba(242, 80, 123, 0.3);
+        }
+
+        .chord-tooltip.visible {
+            opacity: 1;
+        }
+
+        .chord-tooltip-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            color: var(--teal);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .chord-tooltip-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--yellow);
+        }
+
+        .chord-tooltip-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .chord-legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(95,23,115,0.1);
+            border-radius: 8px;
+        }
+
+        .chord-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .chord-legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .chord-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 768px) {
+            #chord-container {
+                min-height: 400px;
+            }
+            .chord-stats {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -483,9 +606,27 @@
             </section>
 
             <section class="section">
-                <h2 class="section-title">Component Companions</h2>
-                <p class="section-subtitle">Which components frequently appear together?</p>
-                <div id="cooccurrence-container"></div>
+                <h2 class="section-title">Component Constellation</h2>
+                <p class="section-subtitle">The interconnected web of components that appear together — hover to explore relationships</p>
+                <div id="chord-container">
+                    <svg id="chord-svg"></svg>
+                    <div class="chord-tooltip" id="chord-tooltip"></div>
+                </div>
+                <div class="chord-legend" id="chord-legend"></div>
+                <div class="chord-stats">
+                    <div class="mini-stat">
+                        <div class="mini-stat-value" id="chord-total-links">—</div>
+                        <div class="mini-stat-label">Total Connections</div>
+                    </div>
+                    <div class="mini-stat">
+                        <div class="mini-stat-value" id="chord-strongest">—</div>
+                        <div class="mini-stat-label">Strongest Bond</div>
+                    </div>
+                    <div class="mini-stat">
+                        <div class="mini-stat-value" id="chord-avg">—</div>
+                        <div class="mini-stat-label">Avg Co-occurrence</div>
+                    </div>
+                </div>
                 <div class="insight-box">
                     <h4>💡 Pairing Patterns</h4>
                     <p id="cooccurrence-insight">Loading analysis...</p>
@@ -504,6 +645,14 @@
     <script>
         const colors = { pink: '#F2507B', purple: '#5F1773', teal: '#26BF94', yellow: '#F2D64B', coral: '#F2836B' };
         const colorArray = [colors.pink, colors.teal, colors.yellow, colors.coral, colors.purple];
+        
+        // Extended color palette for chord diagram
+        const chordColors = [
+            '#F2507B', '#26BF94', '#F2D64B', '#F2836B', '#5F1773',
+            '#FF6B9D', '#4ECDC4', '#FFE66D', '#FF8E72', '#9B59B6',
+            '#E91E63', '#00BCD4', '#FFEB3B', '#FF5722', '#673AB7',
+            '#F06292', '#80DEEA', '#FFF176', '#FFAB91', '#CE93D8'
+        ];
         
         Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
         Chart.defaults.font.family = "'Rajdhani', sans-serif";
@@ -689,6 +838,51 @@
                 uniqueByModule[module] = (uniqueByModule[module] || 0) + 1;
             });
 
+            // Build chord diagram data - focus on most ubiquitous components
+            const chordComponentCount = 16; // Number of components to show
+            const topComponentsForChord = ubiquityRanking.slice(0, chordComponentCount).map(c => c.component);
+            
+            // Create matrix for chord diagram
+            const chordMatrix = [];
+            for (let i = 0; i < chordComponentCount; i++) {
+                chordMatrix[i] = [];
+                for (let j = 0; j < chordComponentCount; j++) {
+                    if (i === j) {
+                        chordMatrix[i][j] = 0;
+                    } else {
+                        const c1 = topComponentsForChord[i];
+                        const c2 = topComponentsForChord[j];
+                        const overlap = [...componentModules[c1]].filter(m => componentModules[c2].has(m)).length;
+                        chordMatrix[i][j] = overlap;
+                    }
+                }
+            }
+
+            // Calculate chord stats
+            let totalConnections = 0;
+            let maxConnection = 0;
+            let maxPair = ['', ''];
+            for (let i = 0; i < chordComponentCount; i++) {
+                for (let j = i + 1; j < chordComponentCount; j++) {
+                    const val = chordMatrix[i][j];
+                    if (val > 0) totalConnections++;
+                    if (val > maxConnection) {
+                        maxConnection = val;
+                        maxPair = [topComponentsForChord[i], topComponentsForChord[j]];
+                    }
+                }
+            }
+
+            const chordData = {
+                labels: topComponentsForChord,
+                matrix: chordMatrix,
+                totalConnections,
+                maxConnection,
+                maxPair,
+                componentModules
+            };
+
+            // Legacy cooccurrence for insight text
             const cooccurrence = [];
             const topComponents = ubiquityRanking.slice(0, 15).map(c => c.component);
             for (let i = 0; i < topComponents.length; i++) {
@@ -702,7 +896,174 @@
 
             return { stats, ubiquityRanking, categoryCount, categoryQty, resistorsByValue, resistorDecades,
                      capacitorsByValue, capRanges, opamps, specialtyICs, ics, transistors, moduleComplexity,
-                     moduleSpecialization, uniqueComponents, uniqueByModule, cooccurrence };
+                     moduleSpecialization, uniqueComponents, uniqueByModule, cooccurrence, chordData };
+        }
+
+        function renderChordDiagram(chordData) {
+            const container = document.getElementById('chord-container');
+            const svg = d3.select('#chord-svg');
+            const tooltip = document.getElementById('chord-tooltip');
+            
+            // Responsive sizing
+            const containerWidth = container.clientWidth;
+            const size = Math.min(containerWidth - 40, 700);
+            const outerRadius = size / 2 - 60;
+            const innerRadius = outerRadius - 25;
+            
+            svg.attr('width', size).attr('height', size);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${size/2}, ${size/2})`);
+            
+            // Create chord layout
+            const chord = d3.chord()
+                .padAngle(0.04)
+                .sortSubgroups(d3.descending)
+                .sortChords(d3.descending);
+            
+            const chords = chord(chordData.matrix);
+            
+            // Arc generator for outer ring
+            const arc = d3.arc()
+                .innerRadius(innerRadius)
+                .outerRadius(outerRadius);
+            
+            // Ribbon generator for chords
+            const ribbon = d3.ribbon()
+                .radius(innerRadius - 2);
+            
+            // Color scale
+            const color = d3.scaleOrdinal()
+                .domain(d3.range(chordData.labels.length))
+                .range(chordColors);
+            
+            // Draw outer arcs (groups)
+            const groups = g.append('g')
+                .attr('class', 'groups')
+                .selectAll('g')
+                .data(chords.groups)
+                .join('g');
+            
+            groups.append('path')
+                .attr('class', 'chord-group-arc')
+                .attr('d', arc)
+                .attr('fill', d => color(d.index))
+                .attr('stroke', d => d3.rgb(color(d.index)).darker(0.5))
+                .attr('stroke-width', 1)
+                .on('mouseover', function(event, d) {
+                    // Fade non-related chords
+                    g.selectAll('.chord-ribbon')
+                        .transition()
+                        .duration(200)
+                        .style('opacity', r => (r.source.index === d.index || r.target.index === d.index) ? 0.9 : 0.1);
+                    
+                    // Show tooltip
+                    const label = chordData.labels[d.index];
+                    const connections = chords.filter(c => c.source.index === d.index || c.target.index === d.index).length;
+                    tooltip.innerHTML = `
+                        <div class="chord-tooltip-title">${label}</div>
+                        <div class="chord-tooltip-value">${connections}</div>
+                        <div class="chord-tooltip-label">connections to other components</div>
+                    `;
+                    tooltip.classList.add('visible');
+                    tooltip.style.left = (event.offsetX + 15) + 'px';
+                    tooltip.style.top = (event.offsetY + 15) + 'px';
+                })
+                .on('mousemove', function(event) {
+                    tooltip.style.left = (event.offsetX + 15) + 'px';
+                    tooltip.style.top = (event.offsetY + 15) + 'px';
+                })
+                .on('mouseout', function() {
+                    g.selectAll('.chord-ribbon')
+                        .transition()
+                        .duration(200)
+                        .style('opacity', 0.7);
+                    tooltip.classList.remove('visible');
+                });
+            
+            // Add labels
+            groups.append('text')
+                .attr('class', 'chord-label')
+                .each(d => { d.angle = (d.startAngle + d.endAngle) / 2; })
+                .attr('dy', '0.35em')
+                .attr('transform', d => `
+                    rotate(${(d.angle * 180 / Math.PI - 90)})
+                    translate(${outerRadius + 10})
+                    ${d.angle > Math.PI ? 'rotate(180)' : ''}
+                `)
+                .attr('text-anchor', d => d.angle > Math.PI ? 'end' : 'start')
+                .text(d => {
+                    const label = chordData.labels[d.index];
+                    return label.length > 12 ? label.slice(0, 12) + '…' : label;
+                });
+            
+            // Draw ribbons (chords)
+            g.append('g')
+                .attr('class', 'ribbons')
+                .selectAll('path')
+                .data(chords)
+                .join('path')
+                .attr('class', 'chord-ribbon')
+                .attr('d', ribbon)
+                .attr('fill', d => color(d.source.index))
+                .attr('stroke', d => d3.rgb(color(d.source.index)).darker(0.3))
+                .attr('stroke-width', 0.5)
+                .style('opacity', 0.7)
+                .on('mouseover', function(event, d) {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .style('opacity', 0.95);
+                    
+                    const source = chordData.labels[d.source.index];
+                    const target = chordData.labels[d.target.index];
+                    const value = d.source.value;
+                    
+                    tooltip.innerHTML = `
+                        <div class="chord-tooltip-title">${source} ↔ ${target}</div>
+                        <div class="chord-tooltip-value">${value}</div>
+                        <div class="chord-tooltip-label">modules in common</div>
+                    `;
+                    tooltip.classList.add('visible');
+                    tooltip.style.left = (event.offsetX + 15) + 'px';
+                    tooltip.style.top = (event.offsetY + 15) + 'px';
+                })
+                .on('mousemove', function(event) {
+                    tooltip.style.left = (event.offsetX + 15) + 'px';
+                    tooltip.style.top = (event.offsetY + 15) + 'px';
+                })
+                .on('mouseout', function() {
+                    d3.select(this)
+                        .transition()
+                        .duration(200)
+                        .style('opacity', 0.7);
+                    tooltip.classList.remove('visible');
+                });
+            
+            // Build legend
+            const legendContainer = document.getElementById('chord-legend');
+            legendContainer.innerHTML = chordData.labels.map((label, i) => `
+                <div class="chord-legend-item">
+                    <div class="chord-legend-color" style="background: ${chordColors[i]}"></div>
+                    <span>${label.length > 15 ? label.slice(0, 15) + '…' : label}</span>
+                </div>
+            `).join('');
+            
+            // Update stats
+            document.getElementById('chord-total-links').textContent = chordData.totalConnections;
+            document.getElementById('chord-strongest').textContent = chordData.maxConnection;
+            
+            // Calculate average
+            let sum = 0, count = 0;
+            for (let i = 0; i < chordData.matrix.length; i++) {
+                for (let j = i + 1; j < chordData.matrix.length; j++) {
+                    if (chordData.matrix[i][j] > 0) {
+                        sum += chordData.matrix[i][j];
+                        count++;
+                    }
+                }
+            }
+            document.getElementById('chord-avg').textContent = count > 0 ? (sum / count).toFixed(1) : '0';
         }
 
         function renderCharts(data) {
@@ -860,15 +1221,14 @@
 
             document.getElementById('unique-insight').innerHTML = `Of ${data.stats.uniqueComponents} single-module components, many represent exotic choices like BBD chips, unusual resistor values (68M, 100M), large electrolytics, and specialized ICs. These "fingerprint" components often define a module's unique sonic character or indicate Andrew's experimentation.`;
 
-            const coocContainer = document.getElementById('cooccurrence-container');
-            const topPairs = data.cooccurrence.slice(0, 9);
-            let coocHTML = '<div class="three-col">';
-            topPairs.forEach(({ c1, c2, overlap }) => {
-                coocHTML += `<div class="mini-stat"><div style="font-size: 0.9rem; color: ${colors.pink};">${c1.length > 15 ? c1.slice(0, 15) + '...' : c1}</div><div style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">+</div><div style="font-size: 0.9rem; color: ${colors.teal};">${c2.length > 15 ? c2.slice(0, 15) + '...' : c2}</div><div class="mini-stat-value" style="font-size: 1.5rem; margin-top: 10px;">${overlap}</div><div class="mini-stat-label">modules together</div></div>`;
-            });
-            coocContainer.innerHTML = coocHTML + '</div>';
+            // Render chord diagram
+            renderChordDiagram(data.chordData);
 
-            if (topPairs.length > 0) document.getElementById('cooccurrence-insight').innerHTML = `<span class="highlight">${topPairs[0].c1}</span> and <span class="highlight">${topPairs[0].c2}</span> appear together in ${topPairs[0].overlap} modules — the most common pairing. These co-occurrence patterns reveal the "grammar" of NLC designs: certain component combinations form idiomatic building blocks that Andrew reaches for repeatedly.`;
+            // Update cooccurrence insight
+            const topPairs = data.cooccurrence.slice(0, 3);
+            if (topPairs.length > 0) {
+                document.getElementById('cooccurrence-insight').innerHTML = `<span class="highlight">${topPairs[0].c1}</span> and <span class="highlight">${topPairs[0].c2}</span> appear together in ${topPairs[0].overlap} modules — the strongest bond in the NLC component ecosystem. The chord diagram reveals the interconnected nature of Andrew's design vocabulary: core passives (100k, 100nF) link to nearly everything, while specialized ICs form tighter clusters with specific supporting components.`;
+            }
 
             document.getElementById('loading').style.display = 'none';
             document.getElementById('content').style.display = 'block';
