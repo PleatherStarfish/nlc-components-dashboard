@@ -607,7 +607,7 @@
 
             <section class="section">
                 <h2 class="section-title">Component Constellation</h2>
-                <p class="section-subtitle">The interconnected web of components that appear together — hover to explore relationships</p>
+                <p class="section-subtitle">How ICs, transistors, and semiconductors cluster together across modules — hover to explore relationships</p>
                 <div id="chord-container">
                     <svg id="chord-svg"></svg>
                     <div class="chord-tooltip" id="chord-tooltip"></div>
@@ -838,9 +838,14 @@
                 uniqueByModule[module] = (uniqueByModule[module] || 0) + 1;
             });
 
-            // Build chord diagram data - focus on most ubiquitous components
-            const chordComponentCount = 16; // Number of components to show
-            const topComponentsForChord = ubiquityRanking.slice(0, chordComponentCount).map(c => c.component);
+            // Build chord diagram data - focus on ICs, transistors, and complex components
+            const complexCategories = ['ic', 'transistor', 'diode']; // Active/complex components only
+            const filteredComponents = ubiquityRanking
+                .filter(c => complexCategories.includes(c.category))
+                .slice(0, 16)
+                .map(c => c.component);
+            const chordComponentCount = filteredComponents.length; // Actual count after filtering
+            const topComponentsForChord = filteredComponents;
             
             // Create matrix for chord diagram
             const chordMatrix = [];
@@ -894,9 +899,21 @@
             }
             cooccurrence.sort((a, b) => b.overlap - a.overlap);
 
+            // Active component cooccurrence for chord insight
+            const topActiveComponents = ubiquityRanking.filter(c => ['ic', 'transistor', 'diode'].includes(c.category)).slice(0, 15);
+            const activeCooccurrence = [];
+            for (let i = 0; i < topActiveComponents.length; i++) {
+                for (let j = i + 1; j < topActiveComponents.length; j++) {
+                    const c1 = topActiveComponents[i].component, c2 = topActiveComponents[j].component;
+                    const overlap = [...componentModules[c1]].filter(m => componentModules[c2].has(m)).length;
+                    activeCooccurrence.push({ c1, c2, overlap });
+                }
+            }
+            activeCooccurrence.sort((a, b) => b.overlap - a.overlap);
+
             return { stats, ubiquityRanking, categoryCount, categoryQty, resistorsByValue, resistorDecades,
                      capacitorsByValue, capRanges, opamps, specialtyICs, ics, transistors, moduleComplexity,
-                     moduleSpecialization, uniqueComponents, uniqueByModule, cooccurrence, chordData };
+                     moduleSpecialization, uniqueComponents, uniqueByModule, cooccurrence, activeCooccurrence, chordData };
         }
 
         function renderChordDiagram(chordData) {
@@ -1221,10 +1238,10 @@
 
             document.getElementById('unique-insight').innerHTML = `Of ${data.stats.uniqueComponents} single-module components, many represent exotic choices like BBD chips, unusual resistor values (68M, 100M), large electrolytics, and specialized ICs. These "fingerprint" components often define a module's unique sonic character or indicate Andrew's experimentation.`;
 
-            // Update cooccurrence insight
-            const topPairs = data.cooccurrence.slice(0, 3);
-            if (topPairs.length > 0) {
-                document.getElementById('cooccurrence-insight').innerHTML = `<span class="highlight">${topPairs[0].c1}</span> and <span class="highlight">${topPairs[0].c2}</span> appear together in ${topPairs[0].overlap} modules — the strongest bond in the NLC component ecosystem. The chord diagram reveals the interconnected nature of Andrew's design vocabulary: core passives (100k, 100nF) link to nearly everything, while specialized ICs form tighter clusters with specific supporting components.`;
+            // Update cooccurrence insight - focused on active components
+            const topActivePairs = data.activeCooccurrence.slice(0, 3);
+            if (topActivePairs.length > 0) {
+                document.getElementById('cooccurrence-insight').innerHTML = `<span class="highlight">${topActivePairs[0].c1}</span> and <span class="highlight">${topActivePairs[0].c2}</span> appear together in ${topActivePairs[0].overlap} modules — the strongest active component pairing. The chord diagram reveals circuit design patterns: op-amps cluster with signal diodes, CMOS logic chips form their own ecosystem, and transistor pairs indicate discrete amplifier stages.`;
             }
 
             // Show content first, then render chord diagram (needs visible container for sizing)
