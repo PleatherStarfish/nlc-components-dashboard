@@ -2,7 +2,7 @@
 
 A beautiful, vaporwave-styled data visualization site exploring the component DNA of **100 Nonlinear Circuits Eurorack modules**.
 
-🌐 **[View Live Site]([https://yourusername.github.io/nlc-components/](https://carplust.club/](https://carplust.club/))**
+🌐 **[View Live Site](https://carplust.club/](https://carplust.club/)**
 
 ## About
 
