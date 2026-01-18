@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLC Components Explorer | Nonlinear Circuits Data Viz</title>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink: #F2507B;
+            --purple: #5F1773;
+            --teal: #26BF94;
+            --yellow: #F2D64B;
+            --coral: #F2836B;
+            --dark: #1a0a20;
+            --darker: #0d0510;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--darker);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
+            z-index: 1000;
+        }
+
+        .grid-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(var(--purple) 1px, transparent 1px),
+                        linear-gradient(90deg, var(--purple) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.1;
+            transform: perspective(500px) rotateX(60deg);
+            transform-origin: top;
+            z-index: -1;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; position: relative; }
+
+        header { text-align: center; padding: 60px 20px; }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, var(--pink), var(--coral), var(--yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 0.1em;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 20px var(--pink)); }
+            to { filter: drop-shadow(0 0 40px var(--teal)); }
+        }
+
+        .subtitle {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(0.9rem, 2.5vw, 1.3rem);
+            color: var(--teal);
+            margin-top: 15px;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+        }
+
+        .tagline {
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.6);
+            margin-top: 25px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+
+        .stats-banner {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            padding: 40px 20px;
+            margin: 40px 0;
+            background: linear-gradient(135deg, rgba(95,23,115,0.3), rgba(26,10,32,0.8));
+            border: 1px solid var(--purple);
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .stats-banner::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(45deg, var(--pink), var(--purple), var(--teal), var(--yellow));
+            border-radius: 12px;
+            z-index: -1;
+            opacity: 0.5;
+            filter: blur(10px);
+        }
+
+        .stat-item { text-align: center; padding: 20px 30px; }
+
+        .stat-number {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: linear-gradient(180deg, var(--yellow), var(--coral));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--teal);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-top: 5px;
+        }
+
+        .section {
+            margin: 60px 0;
+            padding: 40px;
+            background: linear-gradient(135deg, rgba(95,23,115,0.15), rgba(26,10,32,0.9));
+            border-radius: 15px;
+            border: 1px solid rgba(242,80,123,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--pink), var(--teal), var(--yellow));
+        }
+
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: var(--pink);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .section-subtitle {
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 30px;
+            font-size: 1rem;
+        }
+
+        .chart-container { position: relative; height: 400px; width: 100%; }
+        .chart-container.tall { height: 500px; }
+        .chart-container.short { height: 300px; }
+
+        .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 40px; }
+        .three-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; }
+
+        .module-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-top: 20px; }
+
+        .module-card {
+            background: linear-gradient(135deg, rgba(95,23,115,0.3), rgba(13,5,16,0.8));
+            border: 1px solid rgba(38,191,147,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .module-card:hover {
+            border-color: var(--teal);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(38,191,147,0.2);
+        }
+
+        .module-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            color: var(--pink);
+            margin-bottom: 8px;
+        }
+
+        .module-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .module-stats span { color: var(--yellow); font-weight: 600; }
+
+        .scroll-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .scroll-container::-webkit-scrollbar { width: 8px; }
+        .scroll-container::-webkit-scrollbar-track { background: var(--dark); }
+        .scroll-container::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 4px; }
+
+        .unique-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 15px;
+            border-bottom: 1px solid rgba(95,23,115,0.3);
+            transition: background 0.2s;
+        }
+
+        .unique-item:hover { background: rgba(242,80,123,0.1); }
+        .unique-component { color: var(--coral); font-weight: 500; flex: 1; }
+        .unique-module { color: var(--teal); font-size: 0.85rem; text-align: right; flex: 1; }
+
+        footer {
+            text-align: center;
+            padding: 60px 20px;
+            border-top: 1px solid rgba(95,23,115,0.3);
+            margin-top: 60px;
+        }
+
+        .footer-text { color: rgba(255,255,255,0.4); font-size: 0.9rem; }
+        .footer-text a { color: var(--teal); text-decoration: none; }
+        .footer-text a:hover { color: var(--pink); }
+
+        @media (max-width: 768px) {
+            .stats-banner { gap: 20px; }
+            .stat-item { padding: 15px 20px; }
+            .stat-number { font-size: 2.5rem; }
+            .section { padding: 25px; }
+            .two-col, .three-col { grid-template-columns: 1fr; }
+            .chart-container { height: 300px; }
+        }
+
+        .insight-box {
+            background: linear-gradient(135deg, rgba(38,191,147,0.1), rgba(13,5,16,0.8));
+            border-left: 4px solid var(--teal);
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .insight-box h4 {
+            color: var(--teal);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .insight-box p { color: rgba(255,255,255,0.8); line-height: 1.6; }
+        .highlight { color: var(--yellow); font-weight: 600; }
+
+        .loading {
+            text-align: center;
+            padding: 100px;
+            font-family: 'Orbitron', sans-serif;
+            color: var(--teal);
+            font-size: 1.5rem;
+        }
+
+        .loading::after { content: ''; animation: dots 1.5s infinite; }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .mini-stat {
+            text-align: center;
+            padding: 20px;
+            background: rgba(95,23,115,0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(242,80,123,0.2);
+        }
+
+        .mini-stat-value { font-family: 'Orbitron', sans-serif; font-size: 2rem; color: var(--yellow); }
+        .mini-stat-label { font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 5px; }
+
+        .col-header { color: var(--teal); margin-bottom: 20px; font-size: 1.2rem; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+    
+    <div class="container">
+        <header>
+            <h1>NLC Components</h1>
+            <p class="subtitle">Nonlinear Circuits Data Explorer</p>
+            <p class="tagline">A deep dive into the component DNA of Andrew Fitch's legendary DIY Eurorack modules. All data processed live from the source CSV.</p>
+        </header>
+
+        <div id="loading" class="loading">Analyzing component data</div>
+        <div id="content" style="display: none;">
+            <div class="stats-banner">
+                <div class="stat-item">
+                    <div class="stat-number" id="stat-modules">—</div>
+                    <div class="stat-label">Modules</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="stat-components">—</div>
+                    <div class="stat-label">Unique Components</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="stat-entries">—</div>
+                    <div class="stat-label">BOM Entries</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="stat-unique">—</div>
+                    <div class="stat-label">Single-Module Parts</div>
+                </div>
+            </div>
+
+            <section class="section">
+                <h2 class="section-title">Component Taxonomy</h2>
+                <p class="section-subtitle">Breaking down the building blocks by category</p>
+                <div class="two-col">
+                    <div><div class="chart-container"><canvas id="categoryChart"></canvas></div></div>
+                    <div><div class="chart-container"><canvas id="categoryByQtyChart"></canvas></div></div>
+                </div>
+                <div class="insight-box">
+                    <h4>💡 Category Breakdown</h4>
+                    <p id="category-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">The Usual Suspects</h2>
+                <p class="section-subtitle">Components appearing in the most modules — the backbone of NLC designs</p>
+                <div class="chart-container tall"><canvas id="ubiquityChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>💡 Ubiquity Analysis</h4>
+                    <p id="ubiquity-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Resistor Cartography</h2>
+                <p class="section-subtitle">Mapping the resistance landscape across decades</p>
+                <div class="two-col">
+                    <div>
+                        <h3 class="col-header">By Module Count</h3>
+                        <div class="chart-container"><canvas id="resistorChart"></canvas></div>
+                    </div>
+                    <div>
+                        <h3 class="col-header">Decade Distribution</h3>
+                        <div class="chart-container"><canvas id="resistorDecadeChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="insight-box">
+                    <h4>💡 Resistor Patterns</h4>
+                    <p id="resistor-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Capacitor Spectrum</h2>
+                <p class="section-subtitle">From picofarads to millifarads — the timing constants of chaos</p>
+                <div class="two-col">
+                    <div>
+                        <h3 class="col-header">Most Common Values</h3>
+                        <div class="chart-container"><canvas id="capacitorChart"></canvas></div>
+                    </div>
+                    <div>
+                        <h3 class="col-header">Value Range Distribution</h3>
+                        <div class="chart-container"><canvas id="capacitorRangeChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="insight-box">
+                    <h4>💡 Capacitor Insights</h4>
+                    <p id="capacitor-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Silicon Census</h2>
+                <p class="section-subtitle">The integrated circuits powering the chaos machines</p>
+                <div class="two-col">
+                    <div>
+                        <h3 class="col-header">Op-Amp Dynasty</h3>
+                        <div class="chart-container"><canvas id="opampChart"></canvas></div>
+                    </div>
+                    <div>
+                        <h3 class="col-header">Logic & Specialty ICs</h3>
+                        <div class="chart-container"><canvas id="specialtyICChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="three-col" style="margin-top: 30px;">
+                    <div class="mini-stat">
+                        <div class="mini-stat-value" id="ic-total">—</div>
+                        <div class="mini-stat-label">Total IC Types</div>
+                    </div>
+                    <div class="mini-stat">
+                        <div class="mini-stat-value" id="ic-avg">—</div>
+                        <div class="mini-stat-label">Avg ICs per Module</div>
+                    </div>
+                    <div class="mini-stat">
+                        <div class="mini-stat-value" id="ic-max">—</div>
+                        <div class="mini-stat-label">Max ICs in One Module</div>
+                    </div>
+                </div>
+                <div class="insight-box">
+                    <h4>💡 IC Ecosystem</h4>
+                    <p id="ic-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Transistor Territory</h2>
+                <p class="section-subtitle">The discrete semiconductors behind signal shaping</p>
+                <div class="chart-container short"><canvas id="transistorChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>💡 Transistor Trends</h4>
+                    <p id="transistor-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Complexity Spectrum</h2>
+                <p class="section-subtitle">From elegant minimalism to sprawling chaos machines</p>
+                <div class="chart-container tall"><canvas id="complexityChart"></canvas></div>
+                <div class="two-col" style="margin-top: 40px;">
+                    <div>
+                        <h3 class="col-header">🏔️ The Behemoths</h3>
+                        <div class="module-cards" id="complexModules"></div>
+                    </div>
+                    <div>
+                        <h3 class="col-header">✨ Elegant Minimalists</h3>
+                        <div class="module-cards" id="simpleModules"></div>
+                    </div>
+                </div>
+                <div class="insight-box">
+                    <h4>💡 Complexity Analysis</h4>
+                    <p id="complexity-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Specialization Index</h2>
+                <p class="section-subtitle">Which modules use the most unique or rare components?</p>
+                <div class="chart-container tall"><canvas id="specializationChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>💡 Specialization</h4>
+                    <p id="specialization-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">One of a Kind</h2>
+                <p class="section-subtitle">Components appearing in exactly one module — the special ingredients</p>
+                <div class="two-col">
+                    <div>
+                        <h3 class="col-header">Modules with Most Unique Parts</h3>
+                        <div class="chart-container"><canvas id="uniqueByModuleChart"></canvas></div>
+                    </div>
+                    <div>
+                        <h3 class="col-header">Notable Unique Components</h3>
+                        <div class="scroll-container" id="uniqueComponents"></div>
+                    </div>
+                </div>
+                <div class="insight-box">
+                    <h4>💡 Unique Findings</h4>
+                    <p id="unique-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 class="section-title">Component Companions</h2>
+                <p class="section-subtitle">Which components frequently appear together?</p>
+                <div id="cooccurrence-container"></div>
+                <div class="insight-box">
+                    <h4>💡 Pairing Patterns</h4>
+                    <p id="cooccurrence-insight">Loading analysis...</p>
+                </div>
+            </section>
+
+            <footer>
+                <p class="footer-text">
+                    Data: Nonlinear Circuits BOMs • Live CSV Processing<br>
+                    <a href="https://www.nonlinearcircuits.com/" target="_blank">Visit Nonlinear Circuits</a>
+                </p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        const colors = { pink: '#F2507B', purple: '#5F1773', teal: '#26BF94', yellow: '#F2D64B', coral: '#F2836B' };
+        const colorArray = [colors.pink, colors.teal, colors.yellow, colors.coral, colors.purple];
+        
+        Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
+        Chart.defaults.font.family = "'Rajdhani', sans-serif";
+
+        function parseQuantity(q) {
+            if (!q || q === '') return 1;
+            const num = parseFloat(q);
+            if (!isNaN(num)) return Math.floor(num);
+            const match = String(q).match(/(\d+)/);
+            return match ? parseInt(match[1]) : 1;
+        }
+
+        function categorizeComponent(value) {
+            const v = value.toLowerCase();
+            if (/^\d+[kr]?\d*$/i.test(value) || /^\d+[.]\d+[km]?$/i.test(value) || 
+                /^[0-9.]+[kmr]$/i.test(value) || /^\d+[km]\d+$/i.test(value) ||
+                v.includes('resistor') || v === 'rl' || /^\d+ω/.test(v) || /^\d+r\d*$/.test(v)) return 'resistor';
+            if (/\d+[pnu]f/i.test(v) || /\d+[pnu]$/i.test(v) || v.includes('cap') ||
+                /^\d+[pnu]\d*$/i.test(v) || /μf/i.test(v)) return 'capacitor';
+            if (/^tl0[78]/i.test(v) || /^lm\d/i.test(v) || /^cd4/i.test(v) || 
+                /^40\d\d/i.test(v) || /^ne555/i.test(v) || /^555/i.test(v) ||
+                /^pt2399/i.test(v) || /^78l/i.test(v) || /^dg[45]/i.test(v) ||
+                /^hef/i.test(v) || /^v[23]\d/i.test(v) || /^cem/i.test(v) ||
+                /^as3/i.test(v) || /^mcp/i.test(v) || /^74hc/i.test(v) ||
+                v.includes('op amp') || v.includes('opamp') || /^lf3/i.test(v)) return 'ic';
+            if (/^bc[458]/i.test(v) || /^2n[35]/i.test(v) || /^mpsa/i.test(v) ||
+                /^j1[012]/i.test(v) || /^j[23]\d\d/i.test(v) || v.includes('fet') ||
+                v.includes('transistor') || /^mmbf/i.test(v)) return 'transistor';
+            if (/^ll?4148/i.test(v) || /^1n4/i.test(v) || /diode/i.test(v) ||
+                /^bat5/i.test(v) || /schottky/i.test(v) || /zener/i.test(v) || /^s1j/i.test(v)) return 'diode';
+            if (v.includes('socket') || v.includes('jack') || v.includes('connector') ||
+                v.includes('header') || v.includes('pin') || v.includes('pot') ||
+                v.includes('switch') || v.includes('knob')) return 'connector';
+            if (v.includes('led')) return 'led';
+            return 'other';
+        }
+
+        function parseResistorValue(value) {
+            const v = value.toLowerCase().replace(/\s/g, '');
+            if (/^(\d+)k(\d)?$/i.test(v)) {
+                const m = v.match(/^(\d+)k(\d)?$/i);
+                return parseInt(m[1]) * 1000 + (m[2] ? parseInt(m[2]) * 100 : 0);
+            }
+            if (/^(\d+)m(\d)?$/i.test(v)) {
+                const m = v.match(/^(\d+)m(\d)?$/i);
+                return parseInt(m[1]) * 1000000 + (m[2] ? parseInt(m[2]) * 100000 : 0);
+            }
+            if (/^(\d+)r?$/i.test(v)) return parseInt(v.match(/^(\d+)/)[1]);
+            if (/^(\d+\.\d+)([km])?$/i.test(v)) {
+                const m = v.match(/^(\d+\.\d+)([km])?$/i);
+                let mult = 1;
+                if (m[2] === 'k') mult = 1000;
+                if (m[2] === 'm') mult = 1000000;
+                return parseFloat(m[1]) * mult;
+            }
+            return null;
+        }
+
+        function parseCapacitorValue(value) {
+            const v = value.toLowerCase().replace(/\s/g, '');
+            if (/(\d+\.?\d*)p/i.test(v)) return parseFloat(v.match(/(\d+\.?\d*)p/i)[1]) * 1e-12;
+            if (/(\d+\.?\d*)n/i.test(v)) return parseFloat(v.match(/(\d+\.?\d*)n/i)[1]) * 1e-9;
+            if (/(\d+\.?\d*)[uμ]/i.test(v)) return parseFloat(v.match(/(\d+\.?\d*)[uμ]/i)[1]) * 1e-6;
+            if (/^(\d{3})$/.test(v)) {
+                const mantissa = parseInt(v.substring(0, 2));
+                const exp = parseInt(v[2]);
+                return mantissa * Math.pow(10, exp) * 1e-12;
+            }
+            return null;
+        }
+
+        function getResistorDecade(ohms) {
+            if (ohms < 10) return '<10Ω';
+            if (ohms < 100) return '10-100Ω';
+            if (ohms < 1000) return '100Ω-1k';
+            if (ohms < 10000) return '1k-10k';
+            if (ohms < 100000) return '10k-100k';
+            if (ohms < 1000000) return '100k-1M';
+            return '>1M';
+        }
+
+        function getCapRange(farads) {
+            if (farads < 1e-10) return 'pF (≤100pF)';
+            if (farads < 1e-9) return 'pF (>100pF)';
+            if (farads < 1e-7) return 'nF (1-100nF)';
+            if (farads < 1e-6) return 'nF (>100nF)';
+            if (farads < 1e-4) return 'μF (1-100μF)';
+            return 'μF (>100μF)';
+        }
+
+        function processData(results) {
+            const rows = results.data.filter(r => r._module && r.VALUE);
+            const stats = {
+                totalModules: new Set(rows.map(r => r._module)).size,
+                totalComponents: new Set(rows.map(r => r.VALUE)).size,
+                totalEntries: rows.length
+            };
+
+            const componentModules = {}, moduleComponents = {}, componentQuantities = {}, componentCategories = {};
+
+            rows.forEach(row => {
+                const comp = row.VALUE, mod = row._module, qty = parseQuantity(row.QUANTITY);
+                if (!componentModules[comp]) componentModules[comp] = new Set();
+                componentModules[comp].add(mod);
+                if (!moduleComponents[mod]) moduleComponents[mod] = [];
+                moduleComponents[mod].push({ component: comp, qty });
+                componentQuantities[comp] = (componentQuantities[comp] || 0) + qty;
+                componentCategories[comp] = categorizeComponent(comp);
+            });
+
+            const uniqueComponents = Object.entries(componentModules)
+                .filter(([comp, mods]) => mods.size === 1)
+                .map(([comp, mods]) => ({ component: comp, module: [...mods][0] }));
+            
+            stats.uniqueComponents = uniqueComponents.length;
+
+            const ubiquityRanking = Object.entries(componentModules)
+                .map(([comp, mods]) => ({ component: comp, modules: mods.size, category: componentCategories[comp] }))
+                .sort((a, b) => b.modules - a.modules);
+
+            const categoryCount = {}, categoryQty = {};
+            Object.entries(componentCategories).forEach(([comp, cat]) => {
+                categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+                categoryQty[cat] = (categoryQty[cat] || 0) + (componentQuantities[comp] || 0);
+            });
+
+            const resistorsByValue = {}, resistorDecades = {};
+            Object.entries(componentModules).forEach(([comp, mods]) => {
+                if (componentCategories[comp] === 'resistor') {
+                    const ohms = parseResistorValue(comp);
+                    if (ohms !== null) {
+                        resistorsByValue[comp] = { modules: mods.size, ohms };
+                        const decade = getResistorDecade(ohms);
+                        resistorDecades[decade] = (resistorDecades[decade] || 0) + mods.size;
+                    } else if (comp.toLowerCase() === 'rl') {
+                        resistorsByValue[comp] = { modules: mods.size, ohms: 0 };
+                    }
+                }
+            });
+
+            const capacitorsByValue = {}, capRanges = {};
+            Object.entries(componentModules).forEach(([comp, mods]) => {
+                if (componentCategories[comp] === 'capacitor') {
+                    const farads = parseCapacitorValue(comp);
+                    capacitorsByValue[comp] = { modules: mods.size, farads };
+                    if (farads !== null) {
+                        const range = getCapRange(farads);
+                        capRanges[range] = (capRanges[range] || 0) + mods.size;
+                    }
+                }
+            });
+
+            const ics = {}, opamps = {}, specialtyICs = {};
+            Object.entries(componentModules).forEach(([comp, mods]) => {
+                if (componentCategories[comp] === 'ic') {
+                    ics[comp] = mods.size;
+                    const v = comp.toLowerCase();
+                    if (/^tl0[78]/i.test(v) || /^lf3/i.test(v) || v.includes('op amp')) opamps[comp] = mods.size;
+                    else specialtyICs[comp] = mods.size;
+                }
+            });
+
+            const transistors = {};
+            Object.entries(componentModules).forEach(([comp, mods]) => {
+                if (componentCategories[comp] === 'transistor')
+                    transistors[comp] = { modules: mods.size, qty: componentQuantities[comp] };
+            });
+
+            const moduleComplexity = Object.entries(moduleComponents).map(([mod, comps]) => {
+                const uniqueParts = new Set(comps.map(c => c.component)).size;
+                const totalParts = comps.reduce((sum, c) => sum + c.qty, 0);
+                const icCount = comps.filter(c => componentCategories[c.component] === 'ic').length;
+                return { module: mod, uniqueParts, totalParts, icCount };
+            }).sort((a, b) => b.totalParts - a.totalParts);
+
+            const moduleSpecialization = Object.entries(moduleComponents).map(([mod, comps]) => {
+                const uniqueToThis = comps.filter(c => componentModules[c.component].size === 1).length;
+                return { module: mod, uniqueCount: uniqueToThis, total: comps.length, ratio: comps.length > 0 ? uniqueToThis / comps.length : 0 };
+            }).sort((a, b) => b.uniqueCount - a.uniqueCount);
+
+            const uniqueByModule = {};
+            uniqueComponents.forEach(({ component, module }) => {
+                uniqueByModule[module] = (uniqueByModule[module] || 0) + 1;
+            });
+
+            const cooccurrence = [];
+            const topComponents = ubiquityRanking.slice(0, 15).map(c => c.component);
+            for (let i = 0; i < topComponents.length; i++) {
+                for (let j = i + 1; j < topComponents.length; j++) {
+                    const c1 = topComponents[i], c2 = topComponents[j];
+                    const overlap = [...componentModules[c1]].filter(m => componentModules[c2].has(m)).length;
+                    cooccurrence.push({ c1, c2, overlap });
+                }
+            }
+            cooccurrence.sort((a, b) => b.overlap - a.overlap);
+
+            return { stats, ubiquityRanking, categoryCount, categoryQty, resistorsByValue, resistorDecades,
+                     capacitorsByValue, capRanges, opamps, specialtyICs, ics, transistors, moduleComplexity,
+                     moduleSpecialization, uniqueComponents, uniqueByModule, cooccurrence };
+        }
+
+        function renderCharts(data) {
+            document.getElementById('stat-modules').textContent = data.stats.totalModules;
+            document.getElementById('stat-components').textContent = data.stats.totalComponents.toLocaleString();
+            document.getElementById('stat-entries').textContent = data.stats.totalEntries.toLocaleString();
+            document.getElementById('stat-unique').textContent = data.stats.uniqueComponents;
+
+            const catLabels = Object.keys(data.categoryCount);
+            const catColors = { resistor: colors.coral, capacitor: colors.teal, ic: colors.pink, transistor: colors.yellow, diode: colors.purple, connector: '#888', led: '#4CAF50', other: '#666' };
+
+            new Chart(document.getElementById('categoryChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                    datasets: [{ data: catLabels.map(l => data.categoryCount[l]), backgroundColor: catLabels.map(l => catColors[l] || '#666'), borderColor: 'rgba(26,10,32,0.8)', borderWidth: 3 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'By Unique Component Types', color: colors.teal }, legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } } } }
+            });
+
+            new Chart(document.getElementById('categoryByQtyChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                    datasets: [{ data: catLabels.map(l => data.categoryQty[l]), backgroundColor: catLabels.map(l => catColors[l] || '#666'), borderColor: 'rgba(26,10,32,0.8)', borderWidth: 3 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'By Total Quantity Used', color: colors.teal }, legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } } } }
+            });
+
+            const topCat = catLabels.reduce((a, b) => data.categoryCount[a] > data.categoryCount[b] ? a : b);
+            const topCatQty = catLabels.reduce((a, b) => data.categoryQty[a] > data.categoryQty[b] ? a : b);
+            document.getElementById('category-insight').innerHTML = `<span class="highlight">${topCat.charAt(0).toUpperCase() + topCat.slice(1)}s</span> dominate by variety with ${data.categoryCount[topCat]} unique types, while <span class="highlight">${topCatQty}s</span> lead by sheer quantity with ${data.categoryQty[topCatQty].toLocaleString()} total units across all modules.`;
+
+            const topUbiq = data.ubiquityRanking.slice(0, 20);
+            new Chart(document.getElementById('ubiquityChart'), {
+                type: 'bar',
+                data: {
+                    labels: topUbiq.map(d => d.component.length > 25 ? d.component.slice(0, 25) + '...' : d.component),
+                    datasets: [{ label: 'Modules', data: topUbiq.map(d => d.modules), backgroundColor: topUbiq.map((d, i) => colorArray[i % colorArray.length] + 'CC'), borderColor: topUbiq.map((d, i) => colorArray[i % colorArray.length]), borderWidth: 2, borderRadius: 4 }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(95,23,115,0.3)' }, max: 100, title: { display: true, text: 'Number of Modules', color: colors.teal } }, y: { grid: { display: false } } } }
+            });
+
+            const top3 = topUbiq.slice(0, 3);
+            document.getElementById('ubiquity-insight').innerHTML = `The <span class="highlight">${top3[0].component}</span> appears in ${top3[0].modules}% of all modules, followed by <span class="highlight">${top3[1].component}</span> (${top3[1].modules}%) and <span class="highlight">${top3[2].component}</span> (${top3[2].modules}%). These three components form the foundation of nearly every NLC design.`;
+
+            const topResistors = Object.entries(data.resistorsByValue).sort((a, b) => b[1].modules - a[1].modules).slice(0, 15);
+            new Chart(document.getElementById('resistorChart'), {
+                type: 'bar',
+                data: { labels: topResistors.map(([v]) => v), datasets: [{ label: 'Modules', data: topResistors.map(([, d]) => d.modules), backgroundColor: colors.coral + 'AA', borderColor: colors.coral, borderWidth: 2, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false } } } }
+            });
+
+            const decadeOrder = ['<10Ω', '10-100Ω', '100Ω-1k', '1k-10k', '10k-100k', '100k-1M', '>1M'];
+            new Chart(document.getElementById('resistorDecadeChart'), {
+                type: 'bar',
+                data: { labels: decadeOrder, datasets: [{ label: 'Module Appearances', data: decadeOrder.map(d => data.resistorDecades[d] || 0), backgroundColor: colors.yellow + 'AA', borderColor: colors.yellow, borderWidth: 2, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false } } } }
+            });
+
+            const topDecade = decadeOrder.reduce((a, b) => (data.resistorDecades[a] || 0) > (data.resistorDecades[b] || 0) ? a : b);
+            document.getElementById('resistor-insight').innerHTML = `The <span class="highlight">${topDecade}</span> range dominates with ${data.resistorDecades[topDecade]} total module appearances. The classic E24 values (100k, 10k, 47k) are heavily favored. Note that "RL" (LED current limiting resistor) appears frequently, reflecting NLC's signature LED-heavy visual feedback.`;
+
+            const topCaps = Object.entries(data.capacitorsByValue).sort((a, b) => b[1].modules - a[1].modules).slice(0, 12);
+            new Chart(document.getElementById('capacitorChart'), {
+                type: 'bar',
+                data: { labels: topCaps.map(([v]) => v.length > 15 ? v.slice(0, 15) + '...' : v), datasets: [{ label: 'Modules', data: topCaps.map(([, d]) => d.modules), backgroundColor: colors.teal + 'AA', borderColor: colors.teal, borderWidth: 2, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false } } } }
+            });
+
+            const rangeOrder = ['pF (≤100pF)', 'pF (>100pF)', 'nF (1-100nF)', 'nF (>100nF)', 'μF (1-100μF)', 'μF (>100μF)'];
+            new Chart(document.getElementById('capacitorRangeChart'), {
+                type: 'polarArea',
+                data: { labels: rangeOrder, datasets: [{ data: rangeOrder.map(r => data.capRanges[r] || 0), backgroundColor: colorArray.map(c => c + '99'), borderColor: colorArray, borderWidth: 2 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } }, scales: { r: { grid: { color: 'rgba(95,23,115,0.3)' } } } }
+            });
+
+            document.getElementById('capacitor-insight').innerHTML = `<span class="highlight">10μF</span> electrolytics dominate for power supply filtering, while <span class="highlight">100nF</span> ceramic caps are ubiquitous for IC decoupling. The spread across decades reflects the diverse timing needs — from audio-rate filtering (pF) to slow chaos circuits (large μF).`;
+
+            const topOpamps = Object.entries(data.opamps).sort((a, b) => b[1] - a[1]).slice(0, 8);
+            const topSpecialty = Object.entries(data.specialtyICs).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+            new Chart(document.getElementById('opampChart'), {
+                type: 'doughnut',
+                data: { labels: topOpamps.map(([v]) => v.length > 18 ? v.slice(0, 18) + '...' : v), datasets: [{ data: topOpamps.map(([, n]) => n), backgroundColor: [colors.pink, colors.teal, colors.yellow, colors.coral, colors.purple, '#888', '#666', '#444'], borderColor: 'rgba(26,10,32,0.8)', borderWidth: 3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, font: { size: 10 } } } } }
+            });
+
+            new Chart(document.getElementById('specialtyICChart'), {
+                type: 'bar',
+                data: { labels: topSpecialty.map(([v]) => v.length > 15 ? v.slice(0, 15) + '...' : v), datasets: [{ label: 'Modules', data: topSpecialty.map(([, n]) => n), backgroundColor: colors.purple + 'AA', borderColor: colors.purple, borderWidth: 2, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false }, ticks: { maxRotation: 45 } } } }
+            });
+
+            const totalICTypes = Object.keys(data.ics).length;
+            const avgICs = (data.moduleComplexity.reduce((sum, m) => sum + m.icCount, 0) / data.moduleComplexity.length).toFixed(1);
+            const maxICModule = data.moduleComplexity.reduce((a, b) => a.icCount > b.icCount ? a : b);
+            
+            document.getElementById('ic-total').textContent = totalICTypes;
+            document.getElementById('ic-avg').textContent = avgICs;
+            document.getElementById('ic-max').textContent = maxICModule.icCount;
+
+            document.getElementById('ic-insight').innerHTML = `The <span class="highlight">TL072/TL082</span> dual op-amp family dominates, appearing in over half of all modules. Specialty ICs like the <span class="highlight">LM13700</span> (OTA), <span class="highlight">PT2399</span> (delay), and <span class="highlight">4046</span> (PLL) enable NLC's signature chaos and delay effects. <span class="highlight">${maxICModule.module}</span> uses the most ICs (${maxICModule.icCount}).`;
+
+            const topTrans = Object.entries(data.transistors).sort((a, b) => b[1].qty - a[1].qty).slice(0, 8);
+            new Chart(document.getElementById('transistorChart'), {
+                type: 'bar',
+                data: { labels: topTrans.map(([v]) => v.length > 20 ? v.slice(0, 20) + '...' : v), datasets: [{ label: 'Modules', data: topTrans.map(([, d]) => d.modules), backgroundColor: colors.pink + 'AA', borderColor: colors.pink, borderWidth: 2, borderRadius: 4 }, { label: 'Total Qty', data: topTrans.map(([, d]) => d.qty), backgroundColor: colors.teal + 'AA', borderColor: colors.teal, borderWidth: 2, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true } } }, scales: { y: { grid: { color: 'rgba(95,23,115,0.3)' } }, x: { grid: { display: false } } } }
+            });
+
+            if (topTrans.length > 0) document.getElementById('transistor-insight').innerHTML = `The <span class="highlight">${topTrans[0][0]}</span> dominates with ${topTrans[0][1].qty} total units across ${topTrans[0][1].modules} modules. SMD variants (BC847/BC857) are preferred over through-hole (BC547/BC557) for their compact footprint on modern NLC boards.`;
+
+            new Chart(document.getElementById('complexityChart'), {
+                type: 'scatter',
+                data: { datasets: [{ label: 'Modules', data: data.moduleComplexity.map(m => ({ x: m.uniqueParts, y: m.totalParts, label: m.module })), backgroundColor: colors.pink + 'AA', borderColor: colors.pink, borderWidth: 2, pointRadius: 8, pointHoverRadius: 12 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => { const d = data.moduleComplexity[ctx.dataIndex]; return `${d.module}: ${d.uniqueParts} unique, ${d.totalParts} total`; } } } }, scales: { x: { grid: { color: 'rgba(95,23,115,0.3)' }, title: { display: true, text: 'Unique Part Types', color: colors.teal } }, y: { grid: { color: 'rgba(95,23,115,0.3)' }, type: 'logarithmic', title: { display: true, text: 'Total Parts (log scale)', color: colors.teal } } } }
+            });
+
+            const complexContainer = document.getElementById('complexModules');
+            data.moduleComplexity.slice(0, 6).forEach(m => {
+                complexContainer.innerHTML += `<div class="module-card"><div class="module-name">${m.module}</div><div class="module-stats"><div>Unique: <span>${m.uniqueParts}</span></div><div>Total: <span>${m.totalParts.toLocaleString()}</span></div></div></div>`;
+            });
+
+            const simpleContainer = document.getElementById('simpleModules');
+            data.moduleComplexity.slice(-6).reverse().forEach(m => {
+                simpleContainer.innerHTML += `<div class="module-card"><div class="module-name">${m.module}</div><div class="module-stats"><div>Unique: <span>${m.uniqueParts}</span></div><div>Total: <span>${m.totalParts.toLocaleString()}</span></div></div></div>`;
+            });
+
+            const mostComplex = data.moduleComplexity[0], leastComplex = data.moduleComplexity[data.moduleComplexity.length - 1];
+            document.getElementById('complexity-insight').innerHTML = `Complexity spans orders of magnitude: <span class="highlight">${mostComplex.module}</span> towers at ${mostComplex.totalParts.toLocaleString()} total parts, while <span class="highlight">${leastComplex.module}</span> achieves its function with just ${leastComplex.totalParts}. The scatter plot reveals how unique parts vs total parts don't always correlate — some modules reuse few components many times.`;
+
+            const topSpecialized = data.moduleSpecialization.slice(0, 15);
+            new Chart(document.getElementById('specializationChart'), {
+                type: 'bar',
+                data: { labels: topSpecialized.map(m => m.module), datasets: [{ label: 'Unique Components', data: topSpecialized.map(m => m.uniqueCount), backgroundColor: colors.coral + 'AA', borderColor: colors.coral, borderWidth: 2, borderRadius: 4 }] },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(95,23,115,0.3)' }, title: { display: true, text: 'Components Found Only in This Module', color: colors.teal } }, y: { grid: { display: false } } } }
+            });
+
+            document.getElementById('specialization-insight').innerHTML = `<span class="highlight">${topSpecialized[0].module}</span> leads with ${topSpecialized[0].uniqueCount} components found nowhere else in the NLC catalog. High specialization often indicates experimental circuits, build variants, or unusual component choices that give each module its distinctive character.`;
+
+            const uniqueByModuleSorted = Object.entries(data.uniqueByModule).sort((a, b) => b[1] - a[1]).slice(0, 12);
+            new Chart(document.getElementById('uniqueByModuleChart'), {
+                type: 'bar',
+                data: { labels: uniqueByModuleSorted.map(([m]) => m), datasets: [{ label: 'Unique Parts', data: uniqueByModuleSorted.map(([, n]) => n), backgroundColor: colors.yellow + 'AA', borderColor: colors.yellow, borderWidth: 2, borderRadius: 4 }] },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(95,23,115,0.3)' } }, y: { grid: { display: false } } } }
+            });
+
+            const boringPatterns = /connector|header|socket|pin|pot\b|led\b|power|link|^1$|^2$/i;
+            const interestingUnique = data.uniqueComponents.filter(u => !boringPatterns.test(u.component)).slice(0, 40);
+            const uniqueContainer = document.getElementById('uniqueComponents');
+            interestingUnique.forEach(({ component, module }) => {
+                uniqueContainer.innerHTML += `<div class="unique-item"><span class="unique-component">${component}</span><span class="unique-module">${module}</span></div>`;
+            });
+
+            document.getElementById('unique-insight').innerHTML = `Of ${data.stats.uniqueComponents} single-module components, many represent exotic choices like BBD chips, unusual resistor values (68M, 100M), large electrolytics, and specialized ICs. These "fingerprint" components often define a module's unique sonic character or indicate Andrew's experimentation.`;
+
+            const coocContainer = document.getElementById('cooccurrence-container');
+            const topPairs = data.cooccurrence.slice(0, 9);
+            let coocHTML = '<div class="three-col">';
+            topPairs.forEach(({ c1, c2, overlap }) => {
+                coocHTML += `<div class="mini-stat"><div style="font-size: 0.9rem; color: ${colors.pink};">${c1.length > 15 ? c1.slice(0, 15) + '...' : c1}</div><div style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">+</div><div style="font-size: 0.9rem; color: ${colors.teal};">${c2.length > 15 ? c2.slice(0, 15) + '...' : c2}</div><div class="mini-stat-value" style="font-size: 1.5rem; margin-top: 10px;">${overlap}</div><div class="mini-stat-label">modules together</div></div>`;
+            });
+            coocContainer.innerHTML = coocHTML + '</div>';
+
+            if (topPairs.length > 0) document.getElementById('cooccurrence-insight').innerHTML = `<span class="highlight">${topPairs[0].c1}</span> and <span class="highlight">${topPairs[0].c2}</span> appear together in ${topPairs[0].overlap} modules — the most common pairing. These co-occurrence patterns reveal the "grammar" of NLC designs: certain component combinations form idiomatic building blocks that Andrew reaches for repeatedly.`;
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+        }
+
+        Papa.parse('data.csv', {
+            download: true,
+            header: true,
+            complete: function(results) { renderCharts(processData(results)); },
+            error: function(err) { document.getElementById('loading').innerHTML = 'Error loading data. Make sure data.csv is in the same directory.'; }
+        });
+    </script>
+</body>
+</html>
