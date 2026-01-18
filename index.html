@@ -1388,7 +1388,7 @@
                 uniqueContainer.innerHTML += `<div class="unique-item"><span class="unique-component">${component}</span><span class="unique-module">${module}</span></div>`;
             });
 
-            document.getElementById('unique-insight').innerHTML = `Of ${data.stats.uniqueComponents} single-module components, many represent exotic choices like BBD chips, unusual resistor values (68M, 100M), large electrolytics, and specialized ICs. These "fingerprint" components often define a module's unique sonic character or indicate Andrew's experimentation.`;
+            document.getElementById('unique-insight').innerHTML = `Of ${data.stats.uniqueComponents} single-module components, many represent exotic choices like BBD chips, unusual resistor values (68M, 100M), large electrolytics, and specialized ICs.`;
 
             // Update cooccurrence insight - focused on active components
             const topActivePairs = data.activeCooccurrence.slice(0, 3);
