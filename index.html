@@ -428,7 +428,7 @@
         <header>
             <h1>NLC Components</h1>
             <p class="subtitle">Nonlinear Circuits Data Explorer</p>
-            <p class="tagline">A deep dive into the component data for Andrew Fitch's legendary DIY Eurorack modules. All data parsed directly from the official BOM PDFs.</p>
+            <p class="tagline">A deep dive into the component DNA of Andrew Fitch's legendary DIY Eurorack modules. All data processed live from the source CSV.</p>
         </header>
 
         <div id="loading" class="loading">Analyzing component data</div>
@@ -1115,11 +1115,29 @@
             document.getElementById('category-insight').innerHTML = `<span class="highlight">${topCat.charAt(0).toUpperCase() + topCat.slice(1)}s</span> dominate by variety with ${data.categoryCount[topCat]} unique types, while <span class="highlight">${topCatQty}s</span> lead by sheer quantity with ${data.categoryQty[topCatQty].toLocaleString()} total units across all modules.`;
 
             const topUbiq = data.ubiquityRanking.slice(0, 20);
+            
+            // Create gradient colors for ubiquity chart (pink at top to teal at bottom)
+            const ubiqGradientColors = topUbiq.map((_, i) => {
+                const t = i / (topUbiq.length - 1); // 0 to 1
+                // Interpolate from pink to teal
+                const r = Math.round(242 * (1 - t) + 38 * t);
+                const g = Math.round(80 * (1 - t) + 191 * t);
+                const b = Math.round(123 * (1 - t) + 148 * t);
+                return `rgba(${r}, ${g}, ${b}, 0.85)`;
+            });
+            const ubiqBorderColors = topUbiq.map((_, i) => {
+                const t = i / (topUbiq.length - 1);
+                const r = Math.round(242 * (1 - t) + 38 * t);
+                const g = Math.round(80 * (1 - t) + 191 * t);
+                const b = Math.round(123 * (1 - t) + 148 * t);
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+            
             new Chart(document.getElementById('ubiquityChart'), {
                 type: 'bar',
                 data: {
                     labels: topUbiq.map(d => d.component.length > 25 ? d.component.slice(0, 25) + '...' : d.component),
-                    datasets: [{ label: 'Modules', data: topUbiq.map(d => d.modules), backgroundColor: topUbiq.map((d, i) => colorArray[i % colorArray.length] + 'CC'), borderColor: topUbiq.map((d, i) => colorArray[i % colorArray.length]), borderWidth: 2, borderRadius: 4 }]
+                    datasets: [{ label: 'Modules', data: topUbiq.map(d => d.modules), backgroundColor: ubiqGradientColors, borderColor: ubiqBorderColors, borderWidth: 2, borderRadius: 4 }]
                 },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(95,23,115,0.3)' }, max: 100, title: { display: true, text: 'Number of Modules', color: colors.teal } }, y: { grid: { display: false } } } }
             });
