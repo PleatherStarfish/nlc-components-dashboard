@@ -904,11 +904,11 @@
             const svg = d3.select('#chord-svg');
             const tooltip = document.getElementById('chord-tooltip');
             
-            // Responsive sizing
-            const containerWidth = container.clientWidth;
-            const size = Math.min(containerWidth - 40, 700);
-            const outerRadius = size / 2 - 60;
-            const innerRadius = outerRadius - 25;
+            // Responsive sizing - use fallback if container not visible yet
+            const containerWidth = container.clientWidth || container.offsetWidth || 800;
+            const size = Math.max(Math.min(containerWidth - 40, 700), 450);
+            const outerRadius = Math.max(size / 2 - 80, 100);
+            const innerRadius = Math.max(outerRadius - 25, 75);
             
             svg.attr('width', size).attr('height', size);
             
@@ -930,7 +930,7 @@
             
             // Ribbon generator for chords
             const ribbon = d3.ribbon()
-                .radius(innerRadius - 2);
+                .radius(Math.max(innerRadius - 2, 50));
             
             // Color scale
             const color = d3.scaleOrdinal()
@@ -1221,17 +1221,20 @@
 
             document.getElementById('unique-insight').innerHTML = `Of ${data.stats.uniqueComponents} single-module components, many represent exotic choices like BBD chips, unusual resistor values (68M, 100M), large electrolytics, and specialized ICs. These "fingerprint" components often define a module's unique sonic character or indicate Andrew's experimentation.`;
 
-            // Render chord diagram
-            renderChordDiagram(data.chordData);
-
             // Update cooccurrence insight
             const topPairs = data.cooccurrence.slice(0, 3);
             if (topPairs.length > 0) {
                 document.getElementById('cooccurrence-insight').innerHTML = `<span class="highlight">${topPairs[0].c1}</span> and <span class="highlight">${topPairs[0].c2}</span> appear together in ${topPairs[0].overlap} modules — the strongest bond in the NLC component ecosystem. The chord diagram reveals the interconnected nature of Andrew's design vocabulary: core passives (100k, 100nF) link to nearly everything, while specialized ICs form tighter clusters with specific supporting components.`;
             }
 
+            // Show content first, then render chord diagram (needs visible container for sizing)
             document.getElementById('loading').style.display = 'none';
             document.getElementById('content').style.display = 'block';
+            
+            // Render chord diagram after content is visible
+            requestAnimationFrame(() => {
+                renderChordDiagram(data.chordData);
+            });
         }
 
         Papa.parse('data.csv', {
